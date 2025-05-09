@@ -21,22 +21,38 @@ class VariationalPoissonFactorization:
 
         rate_ui = torch.matmul(expected_pi, expected_lambda.T) + 1e-8
 
-        for u in range(self.num_users):
+        """for u in range(self.num_users):
             for k in range(self.num_factors):
                 numer = (exposure_data[u] * expected_lambda[:, k] / rate_ui[u]).sum()
                 self.user_shape[u, k] = 0.3 + numer
-                self.user_rate[u, k] = 0.3 + expected_lambda[:, k].sum()
+                self.user_rate[u, k] = 0.3 + expected_lambda[:, k].sum()"""
+        
+        # Step 1: Compute the "weights" for each user-item pair
+        weights = exposure_data / rate_ui  # shape: (num_users, num_items)
+
+        # Step 2: Update user_shape (num_users, num_factors)
+        #         Multiply weights (U×I) with expected_lambda (I×K) → result is (U×K)
+        self.user_shape = 0.3 + torch.matmul(weights, expected_lambda)
+
+        # Step 3: Update user_rate (U×K)
+        #         Each user gets the same expected_lambda.sum(0), shape (K,)
+        self.user_rate = 0.3 + expected_lambda.sum(dim=0).unsqueeze(0).expand_as(self.user_shape)
 
         expected_lambda = self.item_shape / self.item_rate  # update again
         expected_pi = self.user_shape / self.user_rate
         rate_ui = torch.matmul(expected_pi, expected_lambda.T) + 1e-8
 
         # Update item parameters
-        for i in range(self.num_items):
-            for k in range(self.num_factors):
-                numer = (exposure_data[:, i] * expected_pi[:, k] / rate_ui[:, i]).sum()
-                self.item_shape[i, k] = 0.3 + numer
-                self.item_rate[i, k] = 0.3 + expected_pi[:, k].sum()
+        # Step 1: Compute weights across users for each item
+        weights = exposure_data / rate_ui  # shape: (num_users, num_items)
+
+        # Step 2: Transpose weights to (num_items, num_users)
+        #         Then matmul with expected_pi: (num_items, U) @ (U, K) → (num_items, K)
+        self.item_shape = 0.3 + torch.matmul(weights.T, expected_pi)
+
+        # Step 3: Update item_rate (I×K)
+        #         All items get the same sum over users per factor
+        self.item_rate = 0.3 + expected_pi.sum(dim=0).unsqueeze(0).expand_as(self.item_shape)
 
     def reconstruct_exposures(self):
         expected_pi = self.user_shape / self.user_rate
@@ -70,7 +86,7 @@ def train_variational_poisson(pf_model, exposure_data, num_epochs=50):
             print(f"[V-PF Training] Epoch {epoch}, Loss: {loss.item():.4f}")
     return pf_model
 
-def train_deconfounded_mf(mf_model, rating_data, exposures_hat, num_epochs=100, lr=0.01):
+def train_deconfounded_mf(mf_model, rating_data, exposures_hat, num_epochs=100, lr=0.001):
     optimizer = optim.Adam(mf_model.parameters(), lr=lr)
     criterion = nn.MSELoss()
     for epoch in range(num_epochs):
@@ -83,7 +99,7 @@ def train_deconfounded_mf(mf_model, rating_data, exposures_hat, num_epochs=100, 
         loss.backward()
         optimizer.step()
         if epoch % 10 == 0:
-            print(f"[Deconfounded MF Training] Epoch {epoch}, Loss: {loss.item():.4f}")
+            print(f"[Deconfounded MF Training] Epoch {epoch}, MSE Loss: {loss.item():.4f}")
     return mf_model
 
 # === Example Usage ===

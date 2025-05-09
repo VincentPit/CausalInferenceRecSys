@@ -17,7 +17,7 @@ num_factors = 100
 
 # Step 1: Train Exposure Encoder (Neural Network)
 exposure_encoder = ExposureEncoderNN(num_users, num_items)
-exposure_encoder = train_exposure_encoder(exposure_encoder, A, num_epochs=50, lr = 0.001)
+exposure_encoder = train_exposure_encoder(exposure_encoder, A, num_epochs=100, lr = 0.001)
 
 # Step 2: Get Estimated Exposure Probabilities
 with torch.no_grad():
@@ -25,7 +25,7 @@ with torch.no_grad():
 
 # Step 3: Train Deconfounded MF (Deep MLP-based)
 deep_mf_model = DeepDeconfoundedMF(num_users, num_items, num_factors)
-deep_mf_model = train_deep_mf(deep_mf_model, train_data, exposures_hat, num_epochs=100)
+deep_mf_model = train_deep_mf(deep_mf_model, train_data, exposures_hat, num_epochs=200)
 
 # Step 4: Save model checkpoint
 torch.save({

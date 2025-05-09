@@ -7,14 +7,13 @@ import torch.nn.functional as F
 # Neural Exposure Encoder
 # =========================
 class ExposureEncoderNN(nn.Module):
-    def __init__(self, num_users, num_items, hidden_dim=64):
+    def __init__(self, num_users, num_items, hidden_dim=128, num_layers=3):
         super().__init__()
-        self.encoder = nn.Sequential(
-            nn.Linear(num_items, hidden_dim),
-            nn.ReLU(),
-            nn.Linear(hidden_dim, num_items),
-            nn.Sigmoid()  # output probability of exposure
-        )
+        layers = [nn.Linear(num_items, hidden_dim), nn.ReLU()]
+        for _ in range(num_layers - 1):
+            layers += [nn.Linear(hidden_dim, hidden_dim), nn.ReLU()]
+        layers += [nn.Linear(hidden_dim, num_items), nn.Sigmoid()]
+        self.encoder = nn.Sequential(*layers)
 
     def forward(self, exposure_data):
         return self.encoder(exposure_data)
@@ -29,7 +28,33 @@ class DeepDeconfoundedMF(nn.Module):
         self.item_embeddings = nn.Embedding(num_items, num_factors)
 
         self.mlp = nn.Sequential(
-            nn.Linear(num_factors * 2 + 1, 64),
+            nn.Linear(num_factors * 2 + 1, 128),
+            nn.ReLU(),
+            nn.Linear(128, 1),
+            
+        )
+        """ nn.ReLU(),
+            nn.Linear(64, 1)
+        )"""
+
+    def forward(self, user_ids, item_ids, exposures_hat):
+        theta_u = self.user_embeddings(user_ids)
+        beta_i = self.item_embeddings(item_ids)
+        x = torch.cat([theta_u, beta_i, exposures_hat.unsqueeze(1)], dim=1)
+        #print("X shape:", x.shape)
+        return self.mlp(x).squeeze()
+"""class DeepDeconfoundedMF(nn.Module):
+    def __init__(self, num_users, num_items, num_factors):
+        super().__init__()
+        self.user_embeddings = nn.Embedding(num_users, num_factors)
+        self.item_embeddings = nn.Embedding(num_items, num_factors)
+
+        self.mlp = nn.Sequential(
+            nn.Linear(num_factors * 2 + 1, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
             nn.ReLU(),
             nn.Linear(64, 1)
         )
@@ -38,7 +63,7 @@ class DeepDeconfoundedMF(nn.Module):
         theta_u = self.user_embeddings(user_ids)
         beta_i = self.item_embeddings(item_ids)
         x = torch.cat([theta_u, beta_i, exposures_hat.unsqueeze(1)], dim=1)
-        return self.mlp(x).squeeze()
+        return self.mlp(x).squeeze()"""
 
 # =========================
 # Training Functions
@@ -49,6 +74,7 @@ def train_exposure_encoder(encoder, exposure_data, num_epochs=50, lr=0.001):
 
     for epoch in range(num_epochs):
         optimizer.zero_grad()
+        #print(f"Input shape to encoder: {exposure_data.shape}") 
         pred_exposures = encoder(exposure_data)
         loss = criterion(pred_exposures, exposure_data)
         loss.backward()
@@ -109,7 +135,7 @@ if __name__ == "__main__":
         'exposure_encoder': exposure_encoder.state_dict(),
         'deep_mf_model': deep_mf_model.state_dict()
     }, "check_point_100k.pth")
-    print("✅ Model parameters saved to 'check_point_100k.pth'")
+    print("Model parameters saved to 'check_point_100k.pth'")
 
     # Step 5: Example inference
     user_id = 0

@@ -16,14 +16,14 @@ num_factors = 100
 
 # Step 1: Train VPF
 pf_model = VariationalPoissonFactorization(num_users, num_items, num_factors)
-pf_model = train_variational_poisson(pf_model, A, num_epochs=100, lr=0.001)
+pf_model = train_variational_poisson(pf_model, A, num_epochs=150)
 
 # Step 2: Reconstruct exposures
 exposures_hat = pf_model.reconstruct_exposures().detach()
 
 # Step 3: Train Deconfounded MF
 mf_model = DeconfoundedMatrixFactorization(num_users, num_items, num_factors)
-mf_model = train_deconfounded_mf(mf_model, train_data, exposures_hat, num_epochs=100)
+mf_model = train_deconfounded_mf(mf_model, train_data, exposures_hat, num_epochs=2000)
 
 # Step 4: Save model checkpoint
 torch.save({
