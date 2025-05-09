@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import numpy as np
 
 class VariationalPoissonFactorization:
     def __init__(self, num_users, num_items, num_factors, c1=0.3, c2=0.3, c3=0.3, c4=0.3):
@@ -89,13 +90,20 @@ def train_variational_poisson(pf_model, exposure_data, num_epochs=50):
 def train_deconfounded_mf(mf_model, rating_data, exposures_hat, num_epochs=100, lr=0.001):
     optimizer = optim.Adam(mf_model.parameters(), lr=lr)
     criterion = nn.MSELoss()
+    user_ids, item_ids, ratings = rating_data
+    user_ids = torch.tensor(user_ids, dtype=torch.long)
+    item_ids = torch.tensor(item_ids, dtype=torch.long)
+    ratings = torch.tensor(ratings, dtype=torch.float)
     for epoch in range(num_epochs):
         optimizer.zero_grad()
-        user_ids, item_ids, ratings = rating_data
+        
         exposures_ui = exposures_hat[user_ids, item_ids]
 
         predictions = mf_model(user_ids, item_ids, exposures_ui)
+        """print("Prediction:",type(s))
+        print("Ratings:",type(ratings))"""
         loss = criterion(predictions, ratings)
+        
         loss.backward()
         optimizer.step()
         if epoch % 10 == 0:

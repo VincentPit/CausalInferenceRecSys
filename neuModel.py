@@ -86,10 +86,14 @@ def train_exposure_encoder(encoder, exposure_data, num_epochs=50, lr=0.001):
 def train_deep_mf(model, rating_data, exposures_hat, num_epochs=100, lr=0.001):
     optimizer = optim.Adam(model.parameters(), lr=lr)
     criterion = nn.MSELoss()
+    
+    user_ids, item_ids, ratings = rating_data
+    user_ids = torch.tensor(user_ids, dtype=torch.long)
+    item_ids = torch.tensor(item_ids, dtype=torch.long)
+    ratings = torch.tensor(ratings, dtype=torch.float)
 
     for epoch in range(num_epochs):
         model.train()
-        user_ids, item_ids, ratings = rating_data
         exposures_ui = exposures_hat[user_ids, item_ids]
 
         predictions = model(user_ids, item_ids, exposures_ui)
