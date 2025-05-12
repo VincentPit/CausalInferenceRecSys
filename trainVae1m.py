@@ -23,7 +23,7 @@ with torch.no_grad():
     exposures_hat = recon.detach()
 # Step 3: Train Deconfounded MF (Deep MLP-based)
 deep_mf_model = DeepDeconfoundedMF(num_users, num_items, num_factors)
-deep_mf_model = train_deep_mf(deep_mf_model, train_data, exposures_hat, num_epochs=400)
+deep_mf_model = train_deep_mf(deep_mf_model, train_data, exposures_hat, num_epochs=100)
 
 # Step 4: Save model checkpoint
 torch.save({
