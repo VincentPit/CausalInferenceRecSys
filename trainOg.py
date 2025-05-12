@@ -8,8 +8,8 @@ os.makedirs("check_point_100k", exist_ok=True)
 # Load and preprocess data
 df = load_movielens_100k("ml-100k/u.data")
 data = preprocess_movielens(df)
-A =  torch.tensor(data['exposure_matrix'])
-train_data = torch.tensor(data['train'])
+A =  data['exposure_matrix']
+train_data = data['train']
 num_users = data['num_users']
 num_items = data['num_items']
 num_factors = 100

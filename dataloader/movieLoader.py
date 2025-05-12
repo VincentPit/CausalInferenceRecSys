@@ -4,6 +4,33 @@ import torch
 from sklearn.model_selection import train_test_split
 from scipy.sparse import coo_matrix
 
+def load_movielens_1m(path="ml-1m/ratings.dat"):
+    """
+    Load the MovieLens 1M dataset and return number of users and items.
+
+    Parameters:
+    - path (str): Path to the ratings.dat file.
+
+    Returns:
+    - num_users (int): Number of unique users.
+    - num_items (int): Number of unique items.
+    - df (pd.DataFrame): Loaded DataFrame.
+    """
+    df = pd.read_csv(
+        path,
+        sep="::",
+        engine="python",
+        names=["user_id", "item_id", "rating", "timestamp"],
+        encoding="ISO-8859-1"
+    )
+
+    df["user_id"] -= 1  # make zero-indexed if desired
+    df["item_id"] -= 1
+
+    num_users = df["user_id"].nunique()
+    num_items = df["item_id"].nunique()
+    return num_users, num_items, df
+
 def load_movielens_100k(path="ml-100k/u.data"):
     # Columns: user_id, item_id, rating, timestamp
     df = pd.read_csv(path, sep='\t', names=['user_id', 'item_id', 'rating', 'timestamp'])
@@ -11,7 +38,18 @@ def load_movielens_100k(path="ml-100k/u.data"):
     df['item_id'] -= 1
     return df
 
-def preprocess_movielens(df, num_users=943, num_items=1682, test_size=0.2, seed=42):
+def preprocess_movielens(df, test_size=0.2, seed=42):
+    # Reassign continuous IDs
+    user_mapping = {user: idx for idx, user in enumerate(df['user_id'].unique())}
+    item_mapping = {item: idx for idx, item in enumerate(df['item_id'].unique())}
+    
+    # Update user_id and item_id to be continuous
+    df['user_id'] = df['user_id'].map(user_mapping)
+    df['item_id'] = df['item_id'].map(item_mapping)
+
+    num_users = len(user_mapping)
+    num_items = len(item_mapping)
+
     # Exposure matrix A: 1 if rating exists, else 0
     A = torch.zeros((num_users, num_items), dtype=torch.float32)
     for row in df.itertuples():
@@ -43,6 +81,7 @@ def preprocess_movielens(df, num_users=943, num_items=1682, test_size=0.2, seed=
         'num_users': num_users,
         'num_items': num_items
     }
+
 
 if __name__ == "__main__":
     df = load_movielens_100k("../ml-100k/u.data")
